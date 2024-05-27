@@ -20,22 +20,23 @@ RUN apt-get update && apt-get install -y \
     python3-vcstools \
     ros-noetic-rviz \
     software-properties-common \
+    wget \
+    gnupg2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Re-link python to ensure Python 3 is used
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # Add NVIDIA package repositories for CUDA and cuDNN
-RUN apt-get update && apt-get install -y wget gnupg2
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
-RUN mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
-RUN wget https://developer.download.nvidia.com/compute/cuda/11.4.2/local_installers/cuda-repo-ubuntu1804-11-4-local_11.4.2-470.57.02-1_amd64.deb
-RUN dpkg -i cuda-repo-ubuntu1804-11-4-local_11.4.2-470.57.02-1_amd64.deb
-RUN apt-key add /var/cuda-repo-ubuntu1804-11-4-local/7fa2af80.pub
-RUN apt-get update && apt-get -y install cuda
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin && \
+    mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600 && \
+    wget https://developer.download.nvidia.com/compute/cuda/11.4.2/local_installers/cuda-repo-ubuntu1804-11-4-local_11.4.2-470.57.02-1_amd64.deb && \
+    dpkg -i cuda-repo-ubuntu1804-11-4-local_11.4.2-470.57.02-1_amd64.deb && \
+    apt-key add /var/cuda-repo-ubuntu1804-11-4-local/7fa2af80.pub && \
+    apt-get update && apt-get -y install cuda
 
-# Install TensorFlow
-RUN pip3 install tensorflow==2.4.0
+# Install specific versions of TensorFlow and related dependencies to ensure compatibility
+RUN pip3 install tensorflow==2.13.1 protobuf==3.20.3 grpcio==1.48.2 tensorboard==2.14.0
 
 # Install OpenCV and numpy
 RUN pip3 install opencv-python-headless numpy
@@ -43,8 +44,8 @@ RUN pip3 install opencv-python-headless numpy
 # Initialize rosdep if not already initialized and update
 RUN if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then \
       rosdep init; \
-    fi \
-    && rosdep update
+    fi && \
+    rosdep update
 
 # Create the project directory in the specific structure expected by the script
 RUN mkdir -p ${ROOT_DIR}
@@ -57,8 +58,8 @@ COPY bags ${ROOT_DIR}/../../bags
 RUN mkdir -p src && git clone ${REPO_URL} src/lidar_super_resolution
 
 # Install all dependencies from the ROS workspace
-RUN apt-get update && rosdep install --from-paths src --ignore-src -r -y \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && rosdep install --from-paths src --ignore-src -r -y && \
+    rm -rf /var/lib/apt/lists/*
 
 # Build the ROS workspace
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
